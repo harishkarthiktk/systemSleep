@@ -2,6 +2,9 @@ import os
 import time
 import platform
 
+# global variables
+sleep_time_in_minutes = 5
+
 def sleepy():
 	if 'windows' == str(platform.system()).lower():
 		with open('sleep.log', 'a', encoding='UTF8') as afile:
@@ -28,7 +31,7 @@ def sleepy():
 def main():
 	while True:
 		sleepy()
-		time.sleep(1*60*5) # 1sec * 60* 5 minutes
+		time.sleep(1*60*sleep_time_in_minutes) # 1sec * 60* global_variable
 
 if __name__ == '__main__':
 	main()
