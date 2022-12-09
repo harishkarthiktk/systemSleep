@@ -1,4 +1,4 @@
-import os
+import os, sys
 import time
 import platform
 
@@ -12,20 +12,22 @@ def sleepy():
 			current_datetime = f'[{tm_mday}-{tm_mon}-{tm_year}][{tm_hour}:{tm_min}:{tm_sec}]'
 
 			afile.write(f'{current_datetime}: putting system to sleep...\n')
-
 			try:
 				os.system("Rundll32.exe Powrprof.dll,SetSuspendState Sleep")
-				status= True
-			except Exception as ex:
+				status = True
+   			except KeyboardInterrupt as ki:
+				afile.write(f'{current_datetime}: keyboard interupt detected, hence closing: {str(ki)}')
+      		except Exception as ex:
 				afile.write(f'{current_datetime}: putting system to sleep failed with error: {str(ex)}')
-				status= False
-			finally:
+				status = False
+   			finally:
 				if status:
-					print('sleep success')
+					print(f'sleep success at {current_datetime}')
 				else:
-					print('sleep failure')
+					print(f'sleep failure at {current_datetime}')
 	else:
 		print('the script works only in MS Windows operating systems, and is tested in Windows 10')
+		sys.exit(0)
 
 
 def main():
