@@ -15,12 +15,12 @@ def sleepy():
 			try:
 				os.system("Rundll32.exe Powrprof.dll,SetSuspendState Sleep")
 				status = True
-   			except KeyboardInterrupt as ki:
+			except KeyboardInterrupt as ki:
 				afile.write(f'{current_datetime}: keyboard interupt detected, hence closing: {str(ki)}')
-      		except Exception as ex:
+			except Exception as ex:
 				afile.write(f'{current_datetime}: putting system to sleep failed with error: {str(ex)}')
 				status = False
-   			finally:
+			finally:
 				if status:
 					print(f'sleep success at {current_datetime}')
 				else:
