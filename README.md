@@ -1,12 +1,19 @@
 # systemSleep
-Just a simple script that puts Windows 10 system to sleep. When the script is run, if the system wakes up, it simplely loops itself and sleeps again. Often, someone hits the keyboard, or cat walks over, and wakes up the machine. The script is a way to address that problem and put the machine to sleep again.
 
-## Operation
-- Loop
-  - The loop runs every predefined time limit (5 minutes) to put the system to sleep if it is awake. The script works right now only on Windows OS and has been tested on Windows 10.
-- Operation
-  - A log file will be left behind with dates capturing the script operations. This is purely functional and can be improved with logging capabilities.
+## Introduction
+This is a simple script that puts Windows machines to sleep. There are two components, (1) a Windows batch and (2) a python script.
+
+2) **The Script**: When it is run, it asks if the is a wait before the sleep needs to be done or if it should happen immeidately. Then the system will be put to sleep. And if the system wakes up in the mean time, it waits for 5 minutes and puts the machine back to sleep. To exit the sleep, use ctrl+c to break.
+
+1) **The Batch**: When the batch can be setup as a shortcut or program to invoke the python script. This is a first iteration, and this will be made into a Windows executable later.
 
 ## Prerequisite
-- Windows 10 OS
+- Tested in Windows 10 OS; use in Win11 at your own risk.
 - The script must be executed from CMD as an Administrator
+- The feature to hibernate must be enabled in they system. PS script to enable powershell is below:
+> powercfg -h on
+
+## Future Works:
+- Test for Win11
+- Script will include a GUI for operations.
+- Include the hiberation check test and enable hibernate from within the GUI.

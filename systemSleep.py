@@ -3,7 +3,14 @@ import time
 import platform
 
 # global variables
-sleep_time_in_minutes = 5
+sleep_time_in_minutes = 3
+
+selection = input('should system sleep after sometime: (y/n)?')
+
+if str(selection).lower() == 'y':
+	pre_sleep_time = int(input('enter the time in minutes: '))
+	print(f'will sleep in {pre_sleep_time}minutes')
+	time.sleep(pre_sleep_time*60)
 
 def sleepy():
 	if 'windows' == str(platform.system()).lower():
