@@ -10,19 +10,7 @@ with open("config.json", "r") as rfile:
 
 # global variables
 sleep_time_in_minutes = config_data["sleep_time_in_minutes"] 
-
-
-gui = True
-
-if (gui):
-	selection = input('selection from gui') ## have to add the method for using gui for selection
-else:
-	selection = input('should system sleep after sometime: (y/n)?')
-
-if str(selection).lower() == 'y':
-	pre_sleep_time = int(input('enter the time in minutes: '))
-	print(f'will sleep in {pre_sleep_time}minutes')
-	time.sleep(pre_sleep_time*60)
+default_method = config_data["default_method"]
 
 def sleepy():
 	if 'windows' == str(platform.system()).lower():
@@ -55,4 +43,19 @@ def main():
 		time.sleep(1*60*sleep_time_in_minutes) # 1 second * 60 * global_variable
 
 if __name__ == '__main__':
+	method = default_method
+	
+	# place holder for the gui hook
+
+	if method == 'gui': 
+		selection = input('selection from gui') ## have to add the method for using gui for selection
+	elif method == "cli": 
+		selection = input('should system sleep after sometime: (y/n)?')
+
+	if str(selection).lower() == 'y':
+		pre_sleep_time = int(input('enter the time in minutes: '))
+		print(f'will sleep in {pre_sleep_time}minutes')
+		time.sleep(pre_sleep_time*60)
+
+
 	main()
