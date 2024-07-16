@@ -3,6 +3,9 @@ import time
 import platform
 import json
 
+# configurations are stored in config.json
+# this is done simply to offload configurations externally and manage them there without touching the core script.
+
 with open("config.json", "r") as rfile:
 	config_data = json.loads(
 							rfile.read()
