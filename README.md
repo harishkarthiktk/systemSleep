@@ -17,3 +17,7 @@ This is a simple script that puts Windows machines to sleep. There are two compo
 - Test for Win11
 - Script will include a GUI for operations.
 - Include the hiberation check test and enable hibernate from within the GUI.
+
+
+## Reference Repository:
+- https://github.com/PacktPublishing/Tkinter-GUI-Programming-by-Example/blob/master/
