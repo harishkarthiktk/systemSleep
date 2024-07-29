@@ -16,11 +16,12 @@ class Window(tk.Tk):
         immediate_button = tk.Button(self, text="Sleep Immediately", command=self.immediate_sleep)
         immediate_button.pack(side=tk.LEFT, padx=(20, 0), pady=(0, 20))
 
-        wait_button = tk.Button(self, text="Sleep with Delay", command=self.wait_n_sleep)
+        wait_button = tk.Button(self, text="Cancel", command=self.wait_n_sleep)
         wait_button.pack(side=tk.RIGHT, padx=(0, 20), pady=(0, 20))
 
     def immediate_sleep(self): 
             self.label_text.set(f"Sleeping in 5 seconds..") 
+            sleep(5)
             systemSleep.main()
 
 
