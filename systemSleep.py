@@ -43,7 +43,7 @@ def sleepy():
 def main():
 	while True:
 		sleepy()
-		time.sleep(1*60*sleep_time_in_minutes) # 1 second * 60 * global_variable
+		time.sleep(1 * 60 * sleep_time_in_minutes) # 1 second * 60 * global_variable
 
 if __name__ == '__main__':
 	method = default_method
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 	if str(selection).lower() == 'y':
 		pre_sleep_time = int(input('enter the time in minutes: '))
 		print(f'will sleep in {pre_sleep_time}minutes')
-		time.sleep(pre_sleep_time*60)
+		time.sleep(pre_sleep_time * 60)
 
 
 	main()
