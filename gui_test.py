@@ -21,6 +21,7 @@ class Window(tk.Tk):
 
     def immediate_sleep(self): 
             self.label_text.set(f"Sleeping in 5 seconds..") 
+            sleep(5)
             systemSleep.main()
 
 
