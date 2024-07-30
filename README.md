@@ -7,16 +7,17 @@ This is a simple script that puts Windows machines to sleep. There are two compo
 
 2) **The Batch**: When the batch can be setup as a shortcut or program to invoke the python script. This is a first iteration, and this will be made into a Windows executable later.
 
+3) **The GUI**: The gui.py can be invoked using cmd>py gui.py and it will invoke the gui with static 5second timer and then sleep.
+
 ## Prerequisite
-- Tested in Windows 10 OS; use in Win11 at your own risk.
-- The script must be executed from CMD as an Administrator
-- The feature to hibernate must be enabled in they system. PS script to enable powershell is below:
+- Tested in Windows 10 OS and Windows 11.
+- The program uses python to run; >3.10 is preferred.
+- It is preferred to run the sscript as an user with admin rights.
+- The feature to hibernate must be enabled in they system. A Powershell script to enable powershell is below:
 > powercfg -h on
 
 ## Future Works:
-- Test for Win11
-- Script will include a GUI for operations.
-- Include the hiberation check test and enable hibernate from within the GUI.
+- Script will include a GUI for operations with configurable wait times.
 
 
 ## Reference Repository:
