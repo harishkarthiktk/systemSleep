@@ -1,64 +1,94 @@
-import os, sys
+import os
+import sys
 import time
 import platform
-import json
+import subprocess
+import logging
+from typing import Optional
 
-# configurations are stored in config.json
-# this is done simply to offload configurations externally and manage them there without touching the core script.
+LOG_FILE = "sleep.log"
+SLEEP_COMMAND = ["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"]
 
-with open("config.json", "r") as rfile:
-	config_data = json.loads(
-							rfile.read()
-						  )
 
-# global variables
-sleep_time_in_minutes = config_data["sleep_time_in_minutes"] 
-default_method = config_data["default_method"]
+def init_logger() -> logging.Logger:
+    logging.basicConfig(
+        filename=LOG_FILE,
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+    return logging.getLogger(__name__)
 
-def sleepy():
-	if 'windows' == str(platform.system()).lower():
-		with open('sleep.log', 'a', encoding='UTF8') as afile:
-			tm_year, tm_mon, tm_mday, tm_hour, tm_min, tm_sec, tm_wday, tm_yday, tm_isdst = time.localtime()
-			current_datetime = f'[{tm_mday}-{tm_mon}-{tm_year}][{tm_hour}:{tm_min}:{tm_sec}]'
 
-			afile.write(f'{current_datetime}: putting system to sleep...\n')
-			try:
-				os.system("Rundll32.exe Powrprof.dll,SetSuspendState Sleep")
-				status = True
-			except KeyboardInterrupt as ki:
-				afile.write(f'{current_datetime}: keyboard interupt detected, hence closing: {str(ki)}')
-			except Exception as ex:
-				afile.write(f'{current_datetime}: putting system to sleep failed with error: {str(ex)}')
-				status = False
-			finally:
-				if status:
-					print(f'sleep success at {current_datetime}')
-				else:
-					print(f'sleep failure at {current_datetime}')
-	else:
-		print('the script works only in MS Windows operating systems, and is tested in Windows 10')
-		sys.exit(0)
+def countdown_timer(minutes: int, logger: logging.Logger, cycle: int = 1):
+    total_seconds = minutes * 60
+    try:
+        for remaining in range(total_seconds, 0, -1):
+            mins, secs = divmod(remaining, 60)
+            print(f"[Cycle {cycle}] Countdown: {mins:02d}:{secs:02d}", end="\r")
+            time.sleep(1)
+        print()
+    except KeyboardInterrupt:
+        logger.info("Countdown interrupted by user.")
+        sys.exit(0)
+
+
+def sleep_system(logger: logging.Logger) -> bool:
+    logger.info("Issuing sleep command...")
+    try:
+        subprocess.run(SLEEP_COMMAND, check=True)
+        logger.info("System sleep command issued successfully.")
+        return True
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to put system to sleep: {e}")
+        print(f"Failed to sleep: {e}")
+        return False
+
+
+def is_run_as_pyw() -> bool:
+    return sys.executable.lower().endswith("pythonw.exe") or sys.argv[0].lower().endswith(".pyw")
 
 
 def main():
-	while True:
-		sleepy()
-		time.sleep(1 * 60 * sleep_time_in_minutes) # 1 second * 60 * global_variable
+    if platform.system().lower() != "windows":
+        print("This script only supports Windows 10 or higher.")
+        sys.exit(1)
 
-if __name__ == '__main__':
-	method = default_method
-	
-	# place holder for the gui hook
+    logger = init_logger()
 
-	if method == 'gui': 
-		selection = input('selection from gui') ## have to add the method for using gui for selection
-	elif method == "cli": 
-		selection = input('should system sleep after sometime: (y/n)?')
+    if is_run_as_pyw():
+        logger.info("Running as .pyw - sleeping immediately and exiting after wake.")
+        sleep_system(logger)
+        logger.info("Exiting after initial sleep in .pyw mode.")
+        sys.exit(0)
 
-	if str(selection).lower() == 'y':
-		pre_sleep_time = int(input('enter the time in minutes: '))
-		print(f'will sleep in {pre_sleep_time}minutes')
-		time.sleep(pre_sleep_time * 60)
+    try:
+        selection = input("Put system to sleep after a delay? (y/n): ")
+        if selection.strip().lower() != 'y':
+            print("Exiting.")
+            sys.exit(0)
+        delay = input("Enter delay before sleep in minutes (0 for immediate): ")
+        delay_minutes = int(delay)
+        if delay_minutes < 0:
+            raise ValueError
+    except ValueError:
+        print("Invalid input. Please enter a non-negative integer.")
+        sys.exit(1)
+
+    cycle = 1
+    while True:
+        if delay_minutes > 0:
+            print(f"[Cycle {cycle}] Sleeping in {delay_minutes} minute(s)...")
+            countdown_timer(delay_minutes, logger, cycle)
+        else:
+            print(f"[Cycle {cycle}] Sleeping immediately...")
+
+        sleep_system(logger)
+
+        print(f"[Cycle {cycle}] System woke up. Waiting 5 minutes before next sleep...")
+        logger.info(f"System woke up. Starting 5-minute delay before next sleep cycle.")
+        delay_minutes = 5
+        cycle += 1
 
 
-	main()
+if __name__ == "__main__":
+    main()
