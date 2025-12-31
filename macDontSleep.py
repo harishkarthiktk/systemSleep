@@ -9,7 +9,10 @@ import sys
 import time
 import requests
 import signal
+import argparse
 from datetime import datetime
+
+import config_loader
 
 # Global variable to track caffeinate process
 caffeinate_process = None
@@ -46,15 +49,13 @@ def signal_handler(sig, frame):
     print("👋 Goodbye!")
     sys.exit(0)
 
-def fetch_exchange_rate():
+def fetch_exchange_rate(api_url, api_timeout):
     """
     Fetch USD to INR exchange rate from API
     Returns: (success: bool, rate: float, error_msg: str)
     """
-    url = "https://open.er-api.com/v6/latest/USD"
-    
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(api_url, timeout=api_timeout)
         response.raise_for_status()  # Raise exception for HTTP errors
         
         data = response.json()
@@ -73,7 +74,7 @@ def fetch_exchange_rate():
         return True, inr_rate, None
         
     except requests.exceptions.Timeout:
-        return False, None, "Request timed out after 10 seconds"
+        return False, None, f"Request timed out after {api_timeout} seconds"
     except requests.exceptions.ConnectionError:
         return False, None, "Network connection error"
     except requests.exceptions.HTTPError as e:
@@ -94,9 +95,29 @@ def display_exchange_rate(rate, timestamp):
 
 def main():
     """Main program loop"""
+    # Load config
+    config = config_loader.get_script_config("macDontSleep")
+
+    # Setup CLI argument parsing
+    parser = argparse.ArgumentParser(description="USD to INR Exchange Rate Monitor with macOS Sleep Prevention")
+    parser.add_argument("--api-url",
+                       help="API URL for exchange rates")
+    parser.add_argument("--api-timeout", type=int,
+                       help="API request timeout in seconds")
+    parser.add_argument("--interval", "-i", type=int,
+                       help="Fetch interval in seconds")
+    parser.add_argument("--config", default="config.json",
+                       help="Path to config file")
+    args = parser.parse_args()
+
+    # Merge config with CLI args
+    api_url = args.api_url or config.get("api_url", "https://open.er-api.com/v6/latest/USD")
+    api_timeout = args.api_timeout or config.get("api_timeout", 10)
+    fetch_interval = args.interval or config.get("fetch_interval_seconds", 300)
+
     # Register signal handler for Ctrl+C
     signal.signal(signal.SIGINT, signal_handler)
-    
+
     print("="*60)
     print("🌍 USD to INR Exchange Rate Monitor")
     print("="*60)
@@ -115,18 +136,18 @@ def main():
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             print(f"\n[Iteration {iteration}] Fetching data at {timestamp}...")
-            
-            success, rate, error = fetch_exchange_rate()
-            
+
+            success, rate, error = fetch_exchange_rate(api_url, api_timeout)
+
             if success:
                 display_exchange_rate(rate, timestamp)
             else:
                 print(f"\n❌ Error fetching exchange rate: {error}")
-                print("   Will retry in 5 minutes...")
-            
-            # Wait 5 minutes (300 seconds)
-            print(f"\n⏳ Waiting 5 minutes until next fetch...")
-            time.sleep(300)
+                print(f"   Will retry in {fetch_interval // 60} minutes...")
+
+            # Wait configured interval
+            print(f"\n⏳ Waiting {fetch_interval // 60} minutes until next fetch...")
+            time.sleep(fetch_interval)
             
     except KeyboardInterrupt:
         # This should be caught by signal_handler, but just in case

@@ -4,15 +4,17 @@ import time
 import platform
 import subprocess
 import logging
+import argparse
 from typing import Optional
 
-LOG_FILE = "sleep.log"
+import config_loader
+
 SLEEP_COMMAND = ["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"]
 
 
-def init_logger() -> logging.Logger:
+def init_logger(log_file: str = "sleep.log") -> logging.Logger:
     logging.basicConfig(
-        filename=LOG_FILE,
+        filename=log_file,
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
@@ -32,12 +34,16 @@ def countdown_timer(minutes: int, logger: logging.Logger, cycle: int = 1):
         sys.exit(0)
 
 
-def sleep_system(logger: logging.Logger) -> bool:
+def sleep_system(logger: logging.Logger, timeout: int = 15) -> bool:
     logger.info("Issuing sleep command...")
     try:
-        subprocess.run(SLEEP_COMMAND, check=True)
+        subprocess.run(SLEEP_COMMAND, check=True, timeout=timeout)
         logger.info("System sleep command issued successfully.")
         return True
+    except subprocess.TimeoutExpired:
+        logger.error(f"Sleep command timed out after {timeout} seconds.")
+        print("Sleep command timed out. System may be unresponsive.")
+        return False
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to put system to sleep: {e}")
         print(f"Failed to sleep: {e}")
@@ -53,11 +59,36 @@ def main():
         print("This script only supports Windows 10 or higher.")
         sys.exit(1)
 
-    logger = init_logger()
+    # Load config
+    config = config_loader.get_script_config("systemSleep")
+
+    # Setup CLI argument parsing
+    parser = argparse.ArgumentParser(description="Windows System Sleep Scheduler")
+    parser.add_argument("--delay", "-d", type=int,
+                       help="Initial delay in minutes before sleep")
+    parser.add_argument("--wake-delay", "-w", type=int,
+                       help="Delay after wake-up before next sleep cycle")
+    parser.add_argument("--timeout", "-t", type=int,
+                       help="Sleep command timeout in seconds")
+    parser.add_argument("--log-file", "-l",
+                       help="Path to log file")
+    parser.add_argument("--config", default="config.json",
+                       help="Path to config file")
+    args = parser.parse_args()
+
+    # Merge config with CLI args (args take precedence)
+    log_file = args.log_file or config.get("log_file", "sleep.log")
+    timeout = args.timeout or config.get("sleep_command_timeout", 15)
+    wake_delay = args.wake_delay or config.get("wake_delay_minutes", 5)
+    default_delay = config.get("default_delay_minutes", 0)
+    if args.delay is not None:
+        default_delay = args.delay
+
+    logger = init_logger(log_file)
 
     if is_run_as_pyw():
         logger.info("Running as .pyw - sleeping immediately and exiting after wake.")
-        sleep_system(logger)
+        sleep_system(logger, timeout)
         logger.info("Exiting after initial sleep in .pyw mode.")
         sys.exit(0)
 
@@ -66,8 +97,11 @@ def main():
         if selection.strip().lower() != 'y':
             print("Exiting.")
             sys.exit(0)
-        delay = input("Enter delay before sleep in minutes (0 for immediate): ")
-        delay_minutes = int(delay)
+        delay = input(f"Enter delay before sleep in minutes ({default_delay} for default): ")
+        if not delay.strip():
+            delay_minutes = default_delay
+        else:
+            delay_minutes = int(delay)
         if delay_minutes < 0:
             raise ValueError
     except ValueError:
@@ -82,11 +116,11 @@ def main():
         else:
             print(f"[Cycle {cycle}] Sleeping immediately...")
 
-        sleep_system(logger)
+        sleep_system(logger, timeout)
 
-        print(f"[Cycle {cycle}] System woke up. Waiting 5 minutes before next sleep...")
-        logger.info(f"System woke up. Starting 5-minute delay before next sleep cycle.")
-        delay_minutes = 5
+        print(f"[Cycle {cycle}] System woke up. Waiting {wake_delay} minutes before next sleep...")
+        logger.info(f"System woke up. Starting {wake_delay}-minute delay before next sleep cycle.")
+        delay_minutes = wake_delay
         cycle += 1
 
 

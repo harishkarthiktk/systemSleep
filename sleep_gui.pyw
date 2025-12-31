@@ -4,6 +4,15 @@ import time
 import threading
 import subprocess
 
+import config_loader
+
+# Load configuration
+config = config_loader.get_script_config("sleep_gui")
+TIMEOUT = config.get("sleep_command_timeout", 15)
+WAKE_DELAY = config.get("wake_delay_minutes", 5)
+DEFAULT_DELAY = config.get("default_delay_minutes", 0)
+
+
 class ToolTip:
     """Tooltip for a widget."""
     def __init__(self, widget, text='widget info'):
@@ -76,16 +85,24 @@ def sleep_loop(initial_minutes):
             time.sleep(1)
         status_label.config(text=f"[Cycle {cycle}] Sleeping now...")
         try:
-            subprocess.run(["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"], check=True)
+            subprocess.run(["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"], check=True, timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            status_label.config(text="Sleep command timed out")
+            messagebox.showerror("Timeout Error", f"Sleep command timed out after {TIMEOUT} seconds. System may be unresponsive.")
+            break
         except subprocess.CalledProcessError as e:
             status_label.config(text=f"Sleep error: {e}")
             messagebox.showerror("Error", f"Sleep failed: {e}")
             break
 
         # Log and reset
-        status_label.config(text=f"System woke up. Waiting 5 minutes...")
-        wait_minutes = 5
+        status_label.config(text=f"System woke up. Waiting {WAKE_DELAY} minutes...")
+        wait_minutes = WAKE_DELAY
         cycle += 1
+
+    # Re-enable controls when loop exits (due to error or stop)
+    start_button.config(state='normal')
+    entry.config(state='normal')
 
 
 def on_exit():
@@ -103,7 +120,7 @@ label = tk.Label(frame, text="Enter delay before sleep (in minutes):")
 label.pack(pady=(0, 8))
 
 entry = tk.Entry(frame, width=10, justify='center')
-entry.insert(0, "0")
+entry.insert(0, str(DEFAULT_DELAY))
 entry.pack()
 ToolTip(entry, "0 means immediate sleep")
 

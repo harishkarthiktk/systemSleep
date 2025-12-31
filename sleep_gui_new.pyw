@@ -4,6 +4,14 @@ import time
 import threading
 import subprocess
 
+import config_loader
+
+# Load configuration
+config = config_loader.get_script_config("sleep_gui_new")
+TIMEOUT = config.get("sleep_command_timeout", 15)
+DEFAULT_DELAY = config.get("default_delay_minutes", 0)
+
+
 class ToolTip:
     """Tooltip for a widget."""
     def __init__(self, widget, text='widget info'):
@@ -36,8 +44,8 @@ class ToolTip:
 stop_timer = False
 current_thread = None
 initial_minutes = 0
-enable_cycling = True
-wait_minutes_setting = 5
+enable_cycling = config.get("enable_cycling", True)
+wait_minutes_setting = config.get("wake_delay_minutes", 5)
 
 def start_sleep_timer():
     global stop_timer, current_thread, initial_minutes
@@ -118,7 +126,11 @@ def sleep_loop(initial_minutes_param):
         progress_bar.config(style="orange.Horizontal.TProgressbar")
         
         try:
-            subprocess.run(["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"], check=True)
+            subprocess.run(["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"], check=True, timeout=TIMEOUT)
+        except subprocess.TimeoutExpired:
+            status_label.config(text="Sleep command timed out", foreground="red")
+            messagebox.showerror("Timeout Error", f"Sleep command timed out after {TIMEOUT} seconds. System may be unresponsive.")
+            break
         except subprocess.CalledProcessError as e:
             status_label.config(text=f"Sleep error: {e}", foreground="red")
             messagebox.showerror("Error", f"Sleep failed: {e}")
@@ -239,7 +251,7 @@ ttk.Label(input_frame, text="Enter delay before sleep (in minutes):",
          font=('Segoe UI', 10)).pack(pady=(0, 8))
 
 entry = ttk.Entry(input_frame, width=12, justify='center', font=('Segoe UI', 11))
-entry.insert(0, "0")
+entry.insert(0, str(DEFAULT_DELAY))
 entry.pack()
 ToolTip(entry, "0 means immediate sleep\nPress Enter to start timer")
 
