@@ -5,11 +5,16 @@ import threading
 
 import config_loader
 import windows_sleep_helpers
+import log_manager
 
 # Load configuration
 config = config_loader.get_script_config("windows_sleep_gui")
 TIMEOUT = config.get("sleep_command_timeout", 15)
 DEFAULT_DELAY = config.get("default_delay_minutes", 0)
+
+# Initialize logger
+logger = log_manager.init_logger("windows_sleep_gui")
+logger.info("GUI application started")
 
 
 class ToolTip:
@@ -67,23 +72,26 @@ def start_sleep_timer():
         confirm = messagebox.askyesno("Confirm", f"Start sleep timer for {minutes} minutes{cycle_text}?")
     
     if not confirm:
+        logger.info(f"Sleep timer cancelled by user (delay: {minutes} minutes)")
         return
-    
+
+    logger.info(f"Sleep timer started (delay: {minutes} minutes, cycling: {enable_cycling})")
     stop_timer = False
     start_button.config(state='disabled')
     cancel_button.config(state='normal')
     entry.config(state='disabled')
-    
+
     # Reset and start progress bar
     progress_var.set(0)
     progress_bar.config(style="green.Horizontal.TProgressbar")
-    
+
     status_label.config(text=f"Countdown: {minutes:02d}:00", foreground="blue")
     current_thread = threading.Thread(target=sleep_loop, args=(minutes,), daemon=True)
     current_thread.start()
 
 def cancel_timer():
     global stop_timer
+    logger.info("Sleep timer cancelled by user")
     stop_timer = True
     start_button.config(state='normal')
     cancel_button.config(state='disabled')
@@ -125,14 +133,19 @@ def sleep_loop(initial_minutes_param):
         status_label.config(text=f"[Cycle {cycle}] Putting system to sleep...", foreground="orange")
         progress_bar.config(style="orange.Horizontal.TProgressbar")
 
+        logger.info(f"[Cycle {cycle}] Attempting system sleep...")
         success, error = windows_sleep_helpers.execute_sleep(TIMEOUT)
         if not success:
+            logger.error(f"[Cycle {cycle}] Sleep failed: {error}")
             status_label.config(text=f"Sleep error: {error}", foreground="red")
             messagebox.showerror("Error", error)
             break
-        
+
+        logger.info(f"[Cycle {cycle}] System sleep successful, waiting for wake-up...")
+
         # Check if cycling is disabled
         if not enable_cycling:
+            logger.info("Sleep cycle completed (cycling disabled)")
             status_label.config(text="Sleep completed (cycling disabled)", foreground="green")
             break
             
@@ -214,9 +227,11 @@ def on_exit():
     if current_thread and current_thread.is_alive():
         confirm = messagebox.askyesno("Confirm Exit", "Timer is running. Are you sure you want to exit?")
         if confirm:
+            logger.info("Exiting (timer was running)")
             stop_timer = True
             root.destroy()
     else:
+        logger.info("Exiting application")
         root.destroy()
 
 # Create main window

@@ -13,9 +13,11 @@ import argparse
 from datetime import datetime
 
 import config_loader
+import log_manager
 
-# Global variable to track caffeinate process
+# Global variables
 caffeinate_process = None
+logger = None
 
 def start_sleep_prevention():
     """Start caffeinate to prevent macOS from sleeping"""
@@ -23,13 +25,25 @@ def start_sleep_prevention():
     if sys.platform == 'darwin':
         try:
             caffeinate_process = subprocess.Popen(['caffeinate', '-i'])
-            print("✓ Sleep prevention activated (caffeinate running)")
+            msg = "✓ Sleep prevention activated (caffeinate running)"
+            print(msg)
+            if logger:
+                logger.info(msg)
         except FileNotFoundError:
-            print("⚠ Warning: caffeinate not found (not running on macOS?)")
+            msg = "⚠ Warning: caffeinate not found (not running on macOS?)"
+            print(msg)
+            if logger:
+                logger.warning(msg)
         except Exception as e:
-            print(f"⚠ Warning: Could not start sleep prevention: {e}")
+            msg = f"⚠ Warning: Could not start sleep prevention: {e}"
+            print(msg)
+            if logger:
+                logger.error(msg)
     else:
-        print("⚠ Not running on macOS - sleep prevention unavailable")
+        msg = "⚠ Not running on macOS - sleep prevention unavailable"
+        print(msg)
+        if logger:
+            logger.warning(msg)
 
 def stop_sleep_prevention():
     """Stop caffeinate process"""
@@ -38,13 +52,21 @@ def stop_sleep_prevention():
         try:
             caffeinate_process.terminate()
             caffeinate_process.wait(timeout=2)
-            print("✓ Sleep prevention deactivated")
+            msg = "✓ Sleep prevention deactivated"
+            print(msg)
+            if logger:
+                logger.info(msg)
         except Exception as e:
-            print(f"⚠ Warning: Error stopping sleep prevention: {e}")
+            msg = f"⚠ Warning: Error stopping sleep prevention: {e}"
+            print(msg)
+            if logger:
+                logger.error(msg)
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
     print("\n\n🛑 Interrupt received, shutting down...")
+    if logger:
+        logger.info("Program interrupted by user signal.")
     stop_sleep_prevention()
     print("👋 Goodbye!")
     sys.exit(0)
@@ -95,6 +117,8 @@ def display_exchange_rate(rate, timestamp):
 
 def main():
     """Main program loop"""
+    global logger
+
     # Load config
     config = config_loader.get_script_config("macos_prevent_sleep")
 
@@ -106,9 +130,16 @@ def main():
                        help="API request timeout in seconds")
     parser.add_argument("--interval", "-i", type=int,
                        help="Fetch interval in seconds")
+    parser.add_argument("--log-file",
+                       help="Path to log file")
     parser.add_argument("--config", default="config.json",
                        help="Path to config file")
     args = parser.parse_args()
+
+    # Initialize logger
+    log_file = args.log_file  # CLI overrides default
+    logger = log_manager.init_logger("macos_prevent_sleep", log_file)
+    logger.info("Exchange rate monitor started")
 
     # Merge config with CLI args
     api_url = args.api_url or config.get("api_url", "https://open.er-api.com/v6/latest/USD")
@@ -134,28 +165,38 @@ def main():
         while True:
             iteration += 1
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            
-            print(f"\n[Iteration {iteration}] Fetching data at {timestamp}...")
+
+            msg = f"[Iteration {iteration}] Fetching data at {timestamp}..."
+            print(f"\n{msg}")
+            logger.info(msg)
 
             success, rate, error = fetch_exchange_rate(api_url, api_timeout)
 
             if success:
                 display_exchange_rate(rate, timestamp)
+                logger.info(f"Exchange rate fetched: {rate:.4f}")
             else:
-                print(f"\n❌ Error fetching exchange rate: {error}")
+                msg = f"Error fetching exchange rate: {error}"
+                print(f"\n❌ {msg}")
                 print(f"   Will retry in {fetch_interval // 60} minutes...")
+                logger.warning(msg)
 
             # Wait configured interval
-            print(f"\n⏳ Waiting {fetch_interval // 60} minutes until next fetch...")
+            msg = f"Waiting {fetch_interval // 60} minutes until next fetch..."
+            print(f"\n⏳ {msg}")
+            logger.info(msg)
             time.sleep(fetch_interval)
-            
+
     except KeyboardInterrupt:
         # This should be caught by signal_handler, but just in case
         print("\n\n🛑 Keyboard interrupt detected")
+        logger.info("Keyboard interrupt detected")
         stop_sleep_prevention()
         print("👋 Goodbye!")
     except Exception as e:
-        print(f"\n❌ Fatal error: {e}")
+        msg = f"Fatal error: {e}"
+        print(f"\n❌ {msg}")
+        logger.error(msg)
         stop_sleep_prevention()
         sys.exit(1)
     finally:

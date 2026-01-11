@@ -1,6 +1,5 @@
 {
   "windows_sleep": {
-    "log_file": "sleep.log",
     "sleep_command_timeout": 15,
     "wake_delay_minutes": 5,
     "default_delay_minutes": 0
@@ -17,7 +16,6 @@
     "enable_cycling": true
   },
   "linux_sleep": {
-    "log_file": "linux_sleep.log",
     "sleep_command_timeout": 15,
     "wake_delay_minutes": 5,
     "default_delay_minutes": 0,

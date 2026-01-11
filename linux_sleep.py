@@ -9,30 +9,20 @@ import sys
 import time
 import platform
 import subprocess
-import logging
 import argparse
 import signal
 from typing import Optional
 
 import config_loader
 import linux_sleep_helpers
+import log_manager
 
 
 # Global for prevent mode cleanup
 prevent_process = None
 
 
-def init_logger(log_file: str = "linux_sleep.log") -> logging.Logger:
-    """Initialize file-based logger"""
-    logging.basicConfig(
-        filename=log_file,
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
-    return logging.getLogger(__name__)
-
-
-def countdown_timer(minutes: int, logger: logging.Logger, cycle: int = 1):
+def countdown_timer(minutes: int, logger, cycle: int = 1):
     """Display countdown timer with Ctrl+C handling"""
     total_seconds = minutes * 60
     try:
@@ -251,7 +241,7 @@ def main():
     # Merge config with CLI args (CLI takes precedence)
     mode = args.mode
     sleep_type = args.sleep_type or config.get("default_sleep_type", "suspend")
-    log_file = args.log_file or config.get("log_file", "linux_sleep.log")
+    log_file = args.log_file  # CLI overrides default
     timeout = args.timeout or config.get("sleep_command_timeout", 15)
     wake_delay = args.wake_delay or config.get("wake_delay_minutes", 5)
     default_delay = config.get("default_delay_minutes", 0)
@@ -261,12 +251,12 @@ def main():
 
     prevent_reason = args.prevent_reason or config.get(
         "prevent_sleep_reason",
-        "User requested via linuxSleep.py"
+        "User requested via linux_sleep.py"
     )
 
     # Initialize logger (global so signal handler can use it)
     global logger
-    logger = init_logger(log_file)
+    logger = log_manager.init_logger("linux_sleep", log_file)
 
     # Mode-specific logic
     if mode == "sleep":

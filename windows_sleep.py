@@ -2,26 +2,17 @@ import os
 import sys
 import time
 import platform
-import logging
 import argparse
 import signal
 
 import config_loader
 import windows_sleep_helpers
+import log_manager
 
 logger = None  # Global logger for signal handler
 
 
-def init_logger(log_file: str = "sleep.log") -> logging.Logger:
-    logging.basicConfig(
-        filename=log_file,
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-    )
-    return logging.getLogger(__name__)
-
-
-def countdown_timer(minutes: int, logger: logging.Logger, cycle: int = 1):
+def countdown_timer(minutes: int, logger, cycle: int = 1):
     total_seconds = minutes * 60
     try:
         for remaining in range(total_seconds, 0, -1):
@@ -82,7 +73,7 @@ def main():
     args = parser.parse_args()
 
     # Merge config with CLI args (args take precedence)
-    log_file = args.log_file or config.get("log_file", "sleep.log")
+    log_file = args.log_file  # CLI overrides default
     timeout = args.timeout or config.get("sleep_command_timeout", 15)
     wake_delay = args.wake_delay or config.get("wake_delay_minutes", 5)
     default_delay = config.get("default_delay_minutes", 0)
@@ -90,7 +81,7 @@ def main():
         default_delay = args.delay
 
     global logger
-    logger = init_logger(log_file)
+    logger = log_manager.init_logger("windows_sleep", log_file)
 
     # Register signal handler for graceful Ctrl+C exit
     signal.signal(signal.SIGINT, signal_handler)

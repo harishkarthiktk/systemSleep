@@ -14,6 +14,7 @@ import signal
 
 import config_loader
 import linux_sleep_helpers
+import log_manager
 
 
 # Global state
@@ -136,8 +137,10 @@ def start_operation():
         confirm = messagebox.askyesno("Confirm",
                                      f"Start {current_sleep_type} timer for {minutes} minutes{cycle_text}?")
         if not confirm:
+            logger.info(f"Sleep timer cancelled by user (type: {current_sleep_type}, delay: {minutes}m)")
             return
 
+        logger.info(f"Sleep timer started (type: {current_sleep_type}, delay: {minutes}m, cycling: {enable_cycling})")
         # Disable controls and start thread
         disable_controls()
         stop_operation = False
@@ -156,8 +159,10 @@ def start_operation():
         confirm = messagebox.askyesno("Confirm",
                                      f"Prevent system sleep?\nReason: {reason}")
         if not confirm:
+            logger.info("Sleep prevention cancelled by user")
             return
 
+        logger.info(f"Sleep prevention started - Reason: {reason}")
         # Disable controls and start thread
         disable_controls()
         stop_operation = False
@@ -174,6 +179,7 @@ def cancel_operation():
     """Cancel current operation"""
     global stop_operation, prevent_process
 
+    logger.info("Operation cancelled by user")
     stop_operation = True
     if prevent_process and prevent_process.poll() is None:
         try:
@@ -392,6 +398,7 @@ def open_settings():
 def exit_app():
     """Exit application"""
     global stop_operation
+    logger.info("Exiting application")
     stop_operation = True
     root.quit()
 
@@ -407,6 +414,10 @@ config = config_loader.get_script_config("linux_sleep_gui")
 enable_cycling = config.get("enable_cycling", True)
 wait_minutes_setting = config.get("wake_delay_minutes", 5)
 current_sleep_type = config.get("default_sleep_type", "suspend")
+
+# Initialize logger
+logger = log_manager.init_logger("linux_sleep_gui")
+logger.info("GUI application started")
 
 # Setup styles
 style = ttk.Style()
