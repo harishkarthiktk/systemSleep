@@ -1,35 +1,30 @@
 {
-  "systemSleep": {
+  "windows_sleep": {
     "log_file": "sleep.log",
     "sleep_command_timeout": 15,
     "wake_delay_minutes": 5,
     "default_delay_minutes": 0
   },
-  "macDontSleep": {
+  "macos_prevent_sleep": {
     "api_url": "https://open.er-api.com/v6/latest/USD",
     "api_timeout": 10,
     "fetch_interval_seconds": 300
   },
-  "sleep_gui": {
-    "sleep_command_timeout": 15,
-    "wake_delay_minutes": 5,
-    "default_delay_minutes": 0
-  },
-  "sleep_gui_new": {
+  "windows_sleep_gui": {
     "sleep_command_timeout": 15,
     "wake_delay_minutes": 5,
     "default_delay_minutes": 0,
     "enable_cycling": true
   },
-  "linuxSleep": {
+  "linux_sleep": {
     "log_file": "linux_sleep.log",
     "sleep_command_timeout": 15,
     "wake_delay_minutes": 5,
     "default_delay_minutes": 0,
     "default_sleep_type": "suspend",
-    "prevent_sleep_reason": "User requested via linuxSleep.py"
+    "prevent_sleep_reason": "User requested via linux_sleep.py"
   },
-  "linuxSleep_gui": {
+  "linux_sleep_gui": {
     "sleep_command_timeout": 15,
     "wake_delay_minutes": 5,
     "default_delay_minutes": 0,

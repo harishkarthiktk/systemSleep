@@ -44,25 +44,21 @@ pip install requests
 #### CLI Script
 ```bash
 # Interactive mode
-python systemSleep.py
+python windows_sleep.py
 
 # With command-line arguments
-python systemSleep.py --delay 10 --wake-delay 3 --timeout 20 --log-file sleep.log
+python windows_sleep.py --delay 10 --wake-delay 3 --timeout 20 --log-file sleep.log
 
 # Silent immediate sleep (rename to .pyw and double-click)
-python systemSleep.pyw
+python windows_sleep.pyw
 
 # Show help
-python systemSleep.py --help
+python windows_sleep.py --help
 ```
 
 #### GUI Application
 ```bash
-# Modern GUI with settings
-python sleep_gui_new.pyw
-
-# Legacy GUI
-python sleep_gui.pyw
+python windows_sleep_gui.pyw
 ```
 
 **Windows Setup**:
@@ -76,13 +72,13 @@ powercfg -h on
 #### Exchange Rate Monitor with Sleep Prevention
 ```bash
 # Monitor USD→INR exchange rates while preventing system sleep
-python macDontSleep.py
+python macos_prevent_sleep.py
 
 # With custom settings
-python macDontSleep.py --api-url "https://your-api.com" --interval 120
+python macos_prevent_sleep.py --api-url "https://your-api.com" --interval 120
 
 # Show help
-python macDontSleep.py --help
+python macos_prevent_sleep.py --help
 ```
 
 ### Linux
@@ -90,22 +86,22 @@ python macDontSleep.py --help
 #### CLI Script
 ```bash
 # Interactive sleep mode
-python linuxSleep.py
+python linux_sleep.py
 
 # Sleep with arguments
-python linuxSleep.py --mode sleep --sleep-type suspend --delay 10
+python linux_sleep.py --mode sleep --sleep-type suspend --delay 10
 
 # Prevent system sleep
-python linuxSleep.py --mode prevent --prevent-reason "Long download"
+python linux_sleep.py --mode prevent --prevent-reason "Long download"
 
 # Show help
-python linuxSleep.py --help
+python linux_sleep.py --help
 ```
 
 #### GUI Application
 ```bash
 # Modern GUI with mode selector and settings
-python linuxSleep_gui.pyw
+python linux_sleep_gui.pyw
 ```
 
 **Linux Setup** (Optional - for non-root sleep without password):
@@ -143,14 +139,14 @@ All scripts load settings from `config.json` with the following priority:
 ### Example Configuration
 ```json
 {
-  "linuxSleep": {
+  "linux_sleep": {
     "log_file": "linux_sleep.log",
     "sleep_command_timeout": 15,
     "wake_delay_minutes": 5,
     "default_delay_minutes": 0,
     "default_sleep_type": "suspend"
   },
-  "linuxSleep_gui": {
+  "linux_sleep_gui": {
     "enable_cycling": true,
     "default_sleep_type": "suspend"
   }
@@ -161,12 +157,11 @@ All scripts load settings from `config.json` with the following priority:
 
 ### Core Files
 
-- **systemSleep.py** - Windows CLI sleep scheduler
-- **sleep_gui.pyw** - Windows legacy GUI
-- **sleep_gui_new.pyw** - Windows modern GUI
-- **macDontSleep.py** - macOS exchange rate monitor with sleep prevention
-- **linuxSleep.py** - Linux CLI sleep/prevention scheduler
-- **linuxSleep_gui.pyw** - Linux modern GUI
+- **windows_sleep.py** - Windows CLI sleep scheduler
+- **windows_sleep_gui.pyw** - Windows GUI with settings and timer
+- **macos_prevent_sleep.py** - macOS exchange rate monitor with sleep prevention
+- **linux_sleep.py** - Linux CLI sleep/prevention scheduler
+- **linux_sleep_gui.pyw** - Linux modern GUI
 - **linux_sleep_helpers.py** - Shared Linux utilities
 - **config_loader.py** - Configuration management
 - **config.json** - Configuration file

@@ -5,11 +5,13 @@ import platform
 import subprocess
 import logging
 import argparse
+import signal
 from typing import Optional
 
 import config_loader
 
 SLEEP_COMMAND = ["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"]
+logger = None  # Global logger for signal handler
 
 
 def init_logger(log_file: str = "sleep.log") -> logging.Logger:
@@ -32,6 +34,14 @@ def countdown_timer(minutes: int, logger: logging.Logger, cycle: int = 1):
     except KeyboardInterrupt:
         logger.info("Countdown interrupted by user.")
         sys.exit(0)
+
+
+def signal_handler(sig, frame):
+    """Handle Ctrl+C gracefully"""
+    print("\n\nInterrupt received, exiting...")
+    if logger:
+        logger.info("Program interrupted by user signal.")
+    sys.exit(0)
 
 
 def sleep_system(logger: logging.Logger, timeout: int = 15) -> bool:
@@ -84,7 +94,11 @@ def main():
     if args.delay is not None:
         default_delay = args.delay
 
+    global logger
     logger = init_logger(log_file)
+
+    # Register signal handler for graceful Ctrl+C exit
+    signal.signal(signal.SIGINT, signal_handler)
 
     if is_run_as_pyw():
         logger.info("Running as .pyw - sleeping immediately and exiting after wake.")

@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 systemSleep is a cross-platform system sleep utility with multiple interfaces:
 - **CLI scripts** for Windows, macOS, and Linux sleep management
 - **GUI applications** (tkinter-based) for Windows and Linux with visual timer and controls
-- **Exchange rate monitor** for macOS that prevents system sleep while fetching data
+- **Sleep prevention tool** for macOS that prevents system sleep while monitoring exchange rates
 
 The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+ is required.
 
@@ -15,14 +15,14 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
 
 ### Core Components
 
-1. **systemSleep.py** - Windows CLI sleep script
+1. **windows_sleep.py** - Windows CLI sleep script
    - Uses `Rundll32.exe Powrprof.dll,SetSuspendState` for sleep commands
    - Supports both immediate sleep and delayed countdown
    - Implements multi-cycle sleep behavior (5-minute gap between cycles after wake)
    - Logs all operations to `sleep.log`
    - Can run as `.pyw` for silent/immediate execution
 
-2. **sleep_gui.pyw** - Windows GUI application
+2. **windows_sleep_gui.pyw** - Windows GUI application
    - Tkinter-based interface with countdown display
    - Takes user input for delay time before sleep
    - Implements threading for non-blocking countdown
@@ -30,7 +30,7 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
    - Tooltip helper class for UI hints
    - Has deprecated `delayed_sleep()` function (marked for deletion)
 
-3. **macDontSleep.py** - macOS exchange rate monitor
+3. **macos_prevent_sleep.py** - macOS sleep prevention with exchange rate monitor
    - Uses `caffeinate -i` to prevent system sleep
    - Fetches USD→INR exchange rates every 5 minutes from `https://open.er-api.com/v6/latest/USD`
    - Comprehensive error handling for network failures, timeouts, and JSON parsing
@@ -43,7 +43,7 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
    - `get_setting(script_name, key, default)` - Gets single setting with fallback
    - Silent failure: Returns empty dict if config missing/invalid, scripts use defaults
 
-5. **linuxSleep.py** - Linux CLI sleep/prevention script
+5. **linux_sleep.py** - Linux CLI sleep/prevention script
    - Uses `systemctl suspend/hibernate/hybrid-sleep` for sleep commands
    - Two modes: sleep (scheduler) and prevent (systemd-inhibit)
    - Supports three sleep types: suspend, hibernate, hybrid-sleep
@@ -52,7 +52,7 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
    - Logs all operations to `linux_sleep.log`
    - Signal handler for graceful Ctrl+C shutdown in prevent mode
 
-6. **linuxSleep_gui.pyw** - Linux GUI application
+6. **linux_sleep_gui.pyw** - Linux GUI application
    - Tkinter-based interface with mode selector (sleep/prevent radio buttons)
    - Dynamic UI: shows different controls based on selected mode
      - Sleep mode: sleep type dropdown, delay input (spinbox 0-1440 minutes)
@@ -67,7 +67,7 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
    - Thread-based non-blocking operations for smooth UI
    - Graceful cleanup of sleep prevention process on cancel/exit
    - Cross-platform compatible fonts (TkDefaultFont for Linux/Windows/macOS)
-   - Follows sleep_gui_new.pyw pattern with Linux-specific enhancements
+   - Follows windows_sleep_gui.pyw pattern with Linux-specific enhancements
 
 7. **linux_sleep_helpers.py** - Shared Linux utilities
    - Function-based module (no classes, like config_loader.py)
@@ -77,7 +77,7 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
    - `execute_sleep()` - Execute with error handling
 
 8. **config.json** - Configuration file (now actively used)
-   - Script-specific sections: `systemSleep`, `macDontSleep`, `sleep_gui`, `sleep_gui_new`, `linuxSleep`, `linuxSleep_gui`
+   - Script-specific sections: `windows_sleep`, `macos_prevent_sleep`, `windows_sleep_gui`, `linux_sleep`, `linux_sleep_gui`
    - Essential settings only (minimal, not comprehensive):
      - `sleep_command_timeout`: Subprocess timeout (15s default)
      - `wake_delay_minutes`: Delay after wake-up before next cycle (5 min default)
@@ -86,7 +86,7 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
      - `api_url`: API endpoint for exchange rates
      - `api_timeout`: API request timeout (10s default)
      - `fetch_interval_seconds`: Exchange rate fetch frequency (300s default)
-     - `enable_cycling`: Enable multi-cycle mode (sleep_gui_new, linuxSleep_gui only)
+     - `enable_cycling`: Enable multi-cycle mode (windows_sleep_gui, linux_sleep_gui only)
 
 ## Platform-Specific Details
 
@@ -113,7 +113,7 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
 
 - **Configuration Management**: Centralized config loading via `config_loader.py` module
   - All scripts load config from `config.json` on startup
-  - CLI scripts (systemSleep.py, macDontSleep.py) accept command-line args to override config
+  - CLI scripts (windows_sleep.py, macos_prevent_sleep.py) accept command-line args to override config
   - Priority: CLI args > config.json > hardcoded defaults
 
 - **Logging**: Windows CLI uses file-based logging to configurable path with timestamps
@@ -139,46 +139,46 @@ The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+
 
 ```bash
 # Windows CLI - interactive mode with config defaults
-python systemSleep.py
+python windows_sleep.py
 
 # Windows CLI - with CLI arguments (override config)
-python systemSleep.py --delay 10 --wake-delay 3 --timeout 20 --log-file custom.log
+python windows_sleep.py --delay 10 --wake-delay 3 --timeout 20 --log-file custom.log
 
 # Windows CLI - silent immediate sleep (rename .py to .pyw and double-click)
-python systemSleep.pyw
+python windows_sleep.pyw
 
 # Windows GUI (legacy)
 python sleep_gui.pyw
 
 # Windows GUI (modern with settings)
-python sleep_gui_new.pyw
+python windows_sleep_gui.pyw
 
 # macOS exchange rate monitor with config defaults
-python macDontSleep.py
+python macos_prevent_sleep.py
 
 # macOS - with CLI arguments (override config)
-python macDontSleep.py --api-url "https://api.example.com" --interval 120
+python macos_prevent_sleep.py --api-url "https://api.example.com" --interval 120
 
 # Linux CLI - sleep mode (interactive)
-python linuxSleep.py
+python linux_sleep.py
 
 # Linux CLI - sleep mode with arguments
-python linuxSleep.py --mode sleep --sleep-type suspend --delay 10
+python linux_sleep.py --mode sleep --sleep-type suspend --delay 10
 
 # Linux CLI - prevent mode
-python linuxSleep.py --mode prevent --prevent-reason "Long download"
+python linux_sleep.py --mode prevent --prevent-reason "Long download"
 
 # Linux GUI
-python linuxSleep_gui.pyw
+python linux_sleep_gui.pyw
 ```
 
 ### CLI Usage
 
 All CLI scripts support `--help`:
 ```bash
-python systemSleep.py --help
-python macDontSleep.py --help
-python linuxSleep.py --help
+python windows_sleep.py --help
+python macos_prevent_sleep.py --help
+python linux_sleep.py --help
 ```
 
 ### Checking logs
@@ -222,16 +222,16 @@ The `.gitignore` ignores all `.txt` files, so requirements must be installed dir
 ## Configuration
 
 All scripts use `config_loader.py` to load settings from `config.json`. Priority order:
-1. CLI arguments (systemSleep.py, macDontSleep.py only)
+1. CLI arguments (windows_sleep.py, macos_prevent_sleep.py only)
 2. Values from `config.json` script-specific section
 3. Hardcoded defaults in source code
 
 Scripts work without config.json present - all settings have sensible defaults.
 
 **CLI argument examples:**
-- `systemSleep.py`: `--delay`, `--wake-delay`, `--timeout`, `--log-file`, `--config`
-- `macDontSleep.py`: `--api-url`, `--api-timeout`, `--interval`, `--config`
-- `linuxSleep.py`: `--mode`, `--sleep-type`, `--delay`, `--wake-delay`, `--timeout`, `--log-file`, `--prevent-reason`, `--config`
+- `windows_sleep.py`: `--delay`, `--wake-delay`, `--timeout`, `--log-file`, `--config`
+- `macos_prevent_sleep.py`: `--api-url`, `--api-timeout`, `--interval`, `--config`
+- `linux_sleep.py`: `--mode`, `--sleep-type`, `--delay`, `--wake-delay`, `--timeout`, `--log-file`, `--prevent-reason`, `--config`
 
 ## Bug Fixes & Improvements (Recent)
 
@@ -252,7 +252,7 @@ Scripts work without config.json present - all settings have sensible defaults.
 ## Linux Implementation Details
 
 ### Design Decisions
-- **Two-in-one CLI**: `linuxSleep.py` combines both sleep scheduling and sleep prevention modes (`--mode sleep|prevent`) rather than separate scripts
+- **Two-in-one CLI**: `linux_sleep.py` combines both sleep scheduling and sleep prevention modes (`--mode sleep|prevent`) rather than separate scripts
 - **Shared helpers**: `linux_sleep_helpers.py` extracted as function-based module for code reuse between CLI and GUI (follows `config_loader.py` pattern)
 - **Permission checking**: Uses `systemctl --dry-run` to detect permission issues before attempting actual sleep (prevents authentication dialogs)
 - **Sleep prevention method**: Uses `systemd-inhibit` long-running subprocess pattern (similar to macOS `caffeinate` approach)
@@ -268,7 +268,7 @@ Scripts work without config.json present - all settings have sensible defaults.
 ## Notes for Future Development
 
 - GUI has deprecated `delayed_sleep()` function in sleep_gui.pyw - remove after verification that `sleep_loop()` is stable
-- Consider adding logging to macDontSleep.py (currently prints to stdout only)
+- Consider adding logging to macos_prevent_sleep.py (currently prints to stdout only)
 - Windows scripts could be unified into single codebase with conditional logic
 - macOS script's exchange rate feature is orthogonal to sleep prevention; could split if expanding functionality
 - Consider adding platform detection checks and admin privilege detection for Windows
