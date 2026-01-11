@@ -192,7 +192,7 @@ def main():
         sys.exit(1)
 
     # Load config
-    config = config_loader.get_script_config("linuxSleep")
+    config = config_loader.get_script_config("linux_sleep")
 
     # Setup CLI argument parsing
     parser = argparse.ArgumentParser(description="Linux System Sleep Manager")

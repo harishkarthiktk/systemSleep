@@ -403,7 +403,7 @@ root.geometry("500x500")
 root.resizable(False, False)
 
 # Load config
-config = config_loader.get_script_config("linuxSleep_gui")
+config = config_loader.get_script_config("linux_sleep_gui")
 enable_cycling = config.get("enable_cycling", True)
 wait_minutes_setting = config.get("wake_delay_minutes", 5)
 current_sleep_type = config.get("default_sleep_type", "suspend")

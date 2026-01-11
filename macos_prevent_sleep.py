@@ -96,7 +96,7 @@ def display_exchange_rate(rate, timestamp):
 def main():
     """Main program loop"""
     # Load config
-    config = config_loader.get_script_config("macDontSleep")
+    config = config_loader.get_script_config("macos_prevent_sleep")
 
     # Setup CLI argument parsing
     parser = argparse.ArgumentParser(description="USD to INR Exchange Rate Monitor with macOS Sleep Prevention")

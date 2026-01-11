@@ -2,15 +2,13 @@ import os
 import sys
 import time
 import platform
-import subprocess
 import logging
 import argparse
 import signal
-from typing import Optional
 
 import config_loader
+import windows_sleep_helpers
 
-SLEEP_COMMAND = ["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"]
 logger = None  # Global logger for signal handler
 
 
@@ -46,17 +44,14 @@ def signal_handler(sig, frame):
 
 def sleep_system(logger: logging.Logger, timeout: int = 15) -> bool:
     logger.info("Issuing sleep command...")
-    try:
-        subprocess.run(SLEEP_COMMAND, check=True, timeout=timeout)
+    success, error = windows_sleep_helpers.execute_sleep(timeout)
+
+    if success:
         logger.info("System sleep command issued successfully.")
         return True
-    except subprocess.TimeoutExpired:
-        logger.error(f"Sleep command timed out after {timeout} seconds.")
-        print("Sleep command timed out. System may be unresponsive.")
-        return False
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to put system to sleep: {e}")
-        print(f"Failed to sleep: {e}")
+    else:
+        logger.error(f"Failed to put system to sleep: {error}")
+        print(f"Failed to sleep: {error}")
         return False
 
 
@@ -70,7 +65,7 @@ def main():
         sys.exit(1)
 
     # Load config
-    config = config_loader.get_script_config("systemSleep")
+    config = config_loader.get_script_config("windows_sleep")
 
     # Setup CLI argument parsing
     parser = argparse.ArgumentParser(description="Windows System Sleep Scheduler")

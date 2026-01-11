@@ -2,12 +2,12 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 import time
 import threading
-import subprocess
 
 import config_loader
+import windows_sleep_helpers
 
 # Load configuration
-config = config_loader.get_script_config("sleep_gui_new")
+config = config_loader.get_script_config("windows_sleep_gui")
 TIMEOUT = config.get("sleep_command_timeout", 15)
 DEFAULT_DELAY = config.get("default_delay_minutes", 0)
 
@@ -124,16 +124,11 @@ def sleep_loop(initial_minutes_param):
         # Sleep phase
         status_label.config(text=f"[Cycle {cycle}] Putting system to sleep...", foreground="orange")
         progress_bar.config(style="orange.Horizontal.TProgressbar")
-        
-        try:
-            subprocess.run(["Rundll32.exe", "Powrprof.dll,SetSuspendState", "Sleep"], check=True, timeout=TIMEOUT)
-        except subprocess.TimeoutExpired:
-            status_label.config(text="Sleep command timed out", foreground="red")
-            messagebox.showerror("Timeout Error", f"Sleep command timed out after {TIMEOUT} seconds. System may be unresponsive.")
-            break
-        except subprocess.CalledProcessError as e:
-            status_label.config(text=f"Sleep error: {e}", foreground="red")
-            messagebox.showerror("Error", f"Sleep failed: {e}")
+
+        success, error = windows_sleep_helpers.execute_sleep(TIMEOUT)
+        if not success:
+            status_label.config(text=f"Sleep error: {error}", foreground="red")
+            messagebox.showerror("Error", error)
             break
         
         # Check if cycling is disabled
