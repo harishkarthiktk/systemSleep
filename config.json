@@ -20,5 +20,21 @@
     "wake_delay_minutes": 5,
     "default_delay_minutes": 0,
     "enable_cycling": true
+  },
+  "linuxSleep": {
+    "log_file": "linux_sleep.log",
+    "sleep_command_timeout": 15,
+    "wake_delay_minutes": 5,
+    "default_delay_minutes": 0,
+    "default_sleep_type": "suspend",
+    "prevent_sleep_reason": "User requested via linuxSleep.py"
+  },
+  "linuxSleep_gui": {
+    "sleep_command_timeout": 15,
+    "wake_delay_minutes": 5,
+    "default_delay_minutes": 0,
+    "default_sleep_type": "suspend",
+    "enable_cycling": true,
+    "prevent_sleep_reason": "User requested via GUI"
   }
 }

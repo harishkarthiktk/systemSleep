@@ -5,11 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 systemSleep is a cross-platform system sleep utility with multiple interfaces:
-- **CLI scripts** for Windows and macOS sleep management
-- **GUI application** (tkinter-based) for Windows with visual timer and controls
+- **CLI scripts** for Windows, macOS, and Linux sleep management
+- **GUI applications** (tkinter-based) for Windows and Linux with visual timer and controls
 - **Exchange rate monitor** for macOS that prevents system sleep while fetching data
 
-The project primarily targets Windows 10+, with a secondary macOS monitoring tool. Python 3.10+ is required.
+The project supports Windows 10+, macOS, and Linux (systemd-based). Python 3.10+ is required.
 
 ## Architecture
 
@@ -43,16 +43,50 @@ The project primarily targets Windows 10+, with a secondary macOS monitoring too
    - `get_setting(script_name, key, default)` - Gets single setting with fallback
    - Silent failure: Returns empty dict if config missing/invalid, scripts use defaults
 
-5. **config.json** - Configuration file (now actively used)
-   - Script-specific sections: `systemSleep`, `macDontSleep`, `sleep_gui`, `sleep_gui_new`
+5. **linuxSleep.py** - Linux CLI sleep/prevention script
+   - Uses `systemctl suspend/hibernate/hybrid-sleep` for sleep commands
+   - Two modes: sleep (scheduler) and prevent (systemd-inhibit)
+   - Supports three sleep types: suspend, hibernate, hybrid-sleep
+   - Permission checking via `systemctl --dry-run`
+   - Multi-cycle sleep behavior (5-minute gap between cycles after wake)
+   - Logs all operations to `linux_sleep.log`
+   - Signal handler for graceful Ctrl+C shutdown in prevent mode
+
+6. **linuxSleep_gui.pyw** - Linux GUI application
+   - Tkinter-based interface with mode selector (sleep/prevent radio buttons)
+   - Dynamic UI: shows different controls based on selected mode
+     - Sleep mode: sleep type dropdown, delay input (spinbox 0-1440 minutes)
+     - Prevent mode: reason text entry for sleep prevention
+   - Countdown display with color-coded progress bar (black → orange → green/purple)
+   - Status label with color-coded messages for user feedback
+   - Settings modal with:
+     - Sleep cycling options (enable/disable, wake delay adjustment 1-60 minutes)
+     - Default sleep type selector (suspend/hibernate/hybrid-sleep)
+     - Permission checker button for current sleep type
+     - About section with application info and features
+   - Thread-based non-blocking operations for smooth UI
+   - Graceful cleanup of sleep prevention process on cancel/exit
+   - Cross-platform compatible fonts (TkDefaultFont for Linux/Windows/macOS)
+   - Follows sleep_gui_new.pyw pattern with Linux-specific enhancements
+
+7. **linux_sleep_helpers.py** - Shared Linux utilities
+   - Function-based module (no classes, like config_loader.py)
+   - `check_linux_environment()` - Verify Linux + systemd
+   - `check_sleep_permissions()` - Dry-run permission check
+   - `get_sleep_command()` - Build systemctl command
+   - `execute_sleep()` - Execute with error handling
+
+8. **config.json** - Configuration file (now actively used)
+   - Script-specific sections: `systemSleep`, `macDontSleep`, `sleep_gui`, `sleep_gui_new`, `linuxSleep`, `linuxSleep_gui`
    - Essential settings only (minimal, not comprehensive):
      - `sleep_command_timeout`: Subprocess timeout (15s default)
      - `wake_delay_minutes`: Delay after wake-up before next cycle (5 min default)
      - `default_delay_minutes`: Initial input field value
+     - `default_sleep_type`: Default sleep type for Linux (suspend/hibernate/hybrid-sleep)
      - `api_url`: API endpoint for exchange rates
      - `api_timeout`: API request timeout (10s default)
      - `fetch_interval_seconds`: Exchange rate fetch frequency (300s default)
-     - `enable_cycling`: Enable multi-cycle mode (sleep_gui_new only)
+     - `enable_cycling`: Enable multi-cycle mode (sleep_gui_new, linuxSleep_gui only)
 
 ## Platform-Specific Details
 
@@ -66,6 +100,14 @@ The project primarily targets Windows 10+, with a secondary macOS monitoring too
 - Uses native `caffeinate` command (available on all modern macOS)
 - Requires `requests` module for HTTP calls
 - Exchange rate API is third-party; monitor gracefully handles API failures
+
+### Linux/Fedora
+- Sleep commands: `systemctl suspend|hibernate|hybrid-sleep`
+- Sleep prevention: `systemd-inhibit --what=sleep --who=AppName --why=Reason <command>`
+- Requires systemd (checks `/run/systemd/system`)
+- Permission checking via `systemctl --dry-run` before actual sleep
+- Tested on Fedora, Ubuntu, Debian, Arch, openSUSE, RHEL (all systemd-based distributions)
+- Polkit configuration recommended for non-root sleep without password prompt
 
 ## Key Design Patterns
 
@@ -116,6 +158,18 @@ python macDontSleep.py
 
 # macOS - with CLI arguments (override config)
 python macDontSleep.py --api-url "https://api.example.com" --interval 120
+
+# Linux CLI - sleep mode (interactive)
+python linuxSleep.py
+
+# Linux CLI - sleep mode with arguments
+python linuxSleep.py --mode sleep --sleep-type suspend --delay 10
+
+# Linux CLI - prevent mode
+python linuxSleep.py --mode prevent --prevent-reason "Long download"
+
+# Linux GUI
+python linuxSleep_gui.pyw
 ```
 
 ### CLI Usage
@@ -124,6 +178,7 @@ All CLI scripts support `--help`:
 ```bash
 python systemSleep.py --help
 python macDontSleep.py --help
+python linuxSleep.py --help
 ```
 
 ### Checking logs
@@ -131,6 +186,10 @@ python macDontSleep.py --help
 # View Windows sleep log
 cat sleep.log
 tail -f sleep.log  # follow new entries
+
+# View Linux sleep log
+cat linux_sleep.log
+tail -f linux_sleep.log  # follow new entries
 ```
 
 ### Testing sleep commands manually
@@ -141,6 +200,15 @@ python -m subprocess.run(['Rundll32.exe', 'Powrprof.dll,SetSuspendState', 'Sleep
 # macOS - test caffeinate
 caffeinate -i &  # start in background
 kill %1  # stop
+
+# Linux - test sleep commands
+systemctl suspend --dry-run  # check permission without sleeping
+systemctl suspend  # put system to sleep
+systemctl hibernate  # hibernate
+systemctl hybrid-sleep  # hybrid sleep
+
+# Linux - test sleep prevention
+systemd-inhibit --what=sleep --who=TestApp --why="Testing" sleep 30
 ```
 
 ## Dependencies
@@ -148,6 +216,7 @@ kill %1  # stop
 The `.gitignore` ignores all `.txt` files, so requirements must be installed directly or inferred:
 - Windows scripts: Built-in modules only (`subprocess`, `logging`, `time`, `threading`, `tkinter`, `argparse`, `json`)
 - macOS script: Requires `requests` module (error message guides user to install)
+- Linux scripts: Built-in modules only (`subprocess`, `logging`, `time`, `signal`, `threading`, `tkinter`, `argparse`, `platform`, `os`, `sys`)
 - All scripts: `config_loader.py` module available locally
 
 ## Configuration
@@ -162,6 +231,7 @@ Scripts work without config.json present - all settings have sensible defaults.
 **CLI argument examples:**
 - `systemSleep.py`: `--delay`, `--wake-delay`, `--timeout`, `--log-file`, `--config`
 - `macDontSleep.py`: `--api-url`, `--api-timeout`, `--interval`, `--config`
+- `linuxSleep.py`: `--mode`, `--sleep-type`, `--delay`, `--wake-delay`, `--timeout`, `--log-file`, `--prevent-reason`, `--config`
 
 ## Bug Fixes & Improvements (Recent)
 
@@ -179,6 +249,22 @@ Scripts work without config.json present - all settings have sensible defaults.
    - CLI override support for power users
    - Graceful fallback to hardcoded defaults
 
+## Linux Implementation Details
+
+### Design Decisions
+- **Two-in-one CLI**: `linuxSleep.py` combines both sleep scheduling and sleep prevention modes (`--mode sleep|prevent`) rather than separate scripts
+- **Shared helpers**: `linux_sleep_helpers.py` extracted as function-based module for code reuse between CLI and GUI (follows `config_loader.py` pattern)
+- **Permission checking**: Uses `systemctl --dry-run` to detect permission issues before attempting actual sleep (prevents authentication dialogs)
+- **Sleep prevention method**: Uses `systemd-inhibit` long-running subprocess pattern (similar to macOS `caffeinate` approach)
+- **GUI font compatibility**: Uses `TkDefaultFont` instead of Windows-specific fonts for cross-platform rendering
+- **Settings window sizing**: Increased height (480px) to ensure all content including About section is visible and readable
+
+### Cross-Distribution Compatibility
+- Targets systemd-based distributions only (Fedora, RHEL, Ubuntu, Debian, Arch, openSUSE)
+- No OpenRC or sysvinit support (keeps implementation clean and maintainable)
+- Gracefully exits with error message if systemd not detected
+- Standard systemctl commands work identically across all supported distributions
+
 ## Notes for Future Development
 
 - GUI has deprecated `delayed_sleep()` function in sleep_gui.pyw - remove after verification that `sleep_loop()` is stable
@@ -186,3 +272,6 @@ Scripts work without config.json present - all settings have sensible defaults.
 - Windows scripts could be unified into single codebase with conditional logic
 - macOS script's exchange rate feature is orthogonal to sleep prevention; could split if expanding functionality
 - Consider adding platform detection checks and admin privilege detection for Windows
+- Linux: Consider adding desktop notifications via `notify-send` for sleep/wake events
+- Linux: Could add systemd service for auto-start on login
+- Cross-platform: Could extract shared countdown_timer and error handling patterns into common module
