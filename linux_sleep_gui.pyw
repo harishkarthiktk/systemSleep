@@ -129,11 +129,12 @@ def update_button_states():
 
 
 def disable_controls():
-    """Disable all control buttons"""
+    """Disable all control buttons except cancel"""
     start_btn.config(state='disabled')
-    cancel_btn.config(state='disabled')
+    # Keep cancel_btn enabled so user can cancel operations
     settings_btn.config(state='disabled')
     exit_btn.config(state='disabled')
+    cancel_btn.config(state='normal')  # Always enable cancel during operations
 
 
 def enable_controls():
@@ -268,6 +269,7 @@ def sleep_mode_thread(initial_minutes, sleep_type):
             if cycle > 1:
                 status_text = f"[Cycle {cycle}] {status_text}"
             status_label.config(text=status_text, foreground="black")
+            root.update()  # Process GUI events to make cancel button responsive
 
             time.sleep(1)
 
@@ -296,6 +298,11 @@ def sleep_mode_thread(initial_minutes, sleep_type):
             status_label.config(text=f"Sleep error: {e}", foreground="red")
             messagebox.showerror("Error", f"Sleep failed: {e}")
             break
+
+        # Check if user cancelled during sleep
+        if stop_operation:
+            enable_controls()
+            return
 
         # Check cycling
         if not enable_cycling:
@@ -342,7 +349,8 @@ def prevent_mode_thread(reason):
 
         # Keep alive until cancelled
         while not stop_operation and prevent_process.poll() is None:
-            time.sleep(0.5)
+            root.update()  # Process GUI events to make cancel button responsive
+            time.sleep(0.1)  # Shorter sleep for more responsive cancellation
 
         # Cleanup
         if prevent_process.poll() is None:
