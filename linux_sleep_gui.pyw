@@ -24,6 +24,7 @@ stop_operation = False
 prevent_process = None
 enable_cycling = True
 wait_minutes_setting = 5
+force_ignore_inhibitors = False
 logger = None
 
 # Timeout for sleep commands
@@ -82,7 +83,18 @@ def create_mode_selector(parent):
 
 def on_mode_change(new_mode):
     """Handle mode change - show/hide appropriate controls"""
-    global current_mode
+    global current_mode, prevent_process
+
+    # Stop any active prevent mode when switching modes (fixes inhibitor lock)
+    if prevent_process and prevent_process.poll() is None:
+        logger.info("Stopping active sleep prevention before mode switch")
+        try:
+            prevent_process.terminate()
+            prevent_process.wait(timeout=2)
+        except Exception as e:
+            logger.warning(f"Error stopping prevent process: {e}")
+        prevent_process = None
+
     current_mode = new_mode
 
     if new_mode == "sleep":
@@ -95,6 +107,27 @@ def on_mode_change(new_mode):
         reason_frame.pack(fill='x', pady=(0, 15))
 
 
+def update_button_states():
+    """Update button states and text based on current operation"""
+    global current_mode, prevent_process
+
+    # Check if prevent sleep is currently active
+    prevent_active = current_mode == "prevent" and prevent_process and prevent_process.poll() is None
+
+    if prevent_active:
+        # During prevent sleep operation
+        start_btn.config(state='disabled')
+        cancel_btn.config(state='normal', text="Stop Prevention")
+        settings_btn.config(state='disabled')
+        exit_btn.config(state='disabled')
+    else:
+        # Normal state
+        start_btn.config(state='normal', text="Start")
+        cancel_btn.config(state='normal', text="Cancel")
+        settings_btn.config(state='normal')
+        exit_btn.config(state='normal')
+
+
 def disable_controls():
     """Disable all control buttons"""
     start_btn.config(state='disabled')
@@ -104,11 +137,8 @@ def disable_controls():
 
 
 def enable_controls():
-    """Re-enable all control buttons"""
-    start_btn.config(state='normal')
-    cancel_btn.config(state='normal')
-    settings_btn.config(state='normal')
-    exit_btn.config(state='normal')
+    """Re-enable all control buttons and update button states"""
+    update_button_states()
 
 
 def start_operation():
@@ -179,21 +209,43 @@ def cancel_operation():
     """Cancel current operation"""
     global stop_operation, prevent_process
 
+    # Special handling for prevent sleep operations
+    if current_mode == "prevent" and prevent_process and prevent_process.poll() is None:
+        confirm = messagebox.askyesno(
+            "Stop Prevention",
+            "Stop sleep prevention and remove inhibitor?\n\n"
+            "This will allow the system to sleep again."
+        )
+        if not confirm:
+            logger.info("Stop operation cancelled by user")
+            return
+
     logger.info("Operation cancelled by user")
     stop_operation = True
+
     if prevent_process and prevent_process.poll() is None:
         try:
+            logger.info(f"Terminating prevent sleep process (PID: {prevent_process.pid})")
             prevent_process.terminate()
             prevent_process.wait(timeout=2)
-        except:
-            pass
-    status_label.config(text="Operation cancelled", foreground="blue")
+            logger.info("Prevent sleep process terminated successfully")
+        except subprocess.TimeoutExpired:
+            logger.warning("Prevent sleep process did not terminate, killing forcefully")
+            try:
+                prevent_process.kill()
+                prevent_process.wait(timeout=1)
+            except:
+                pass
+        except Exception as e:
+            logger.error(f"Error stopping prevent process: {e}")
+
+    status_label.config(text="Operation stopped", foreground="blue")
     enable_controls()
 
 
 def sleep_mode_thread(initial_minutes, sleep_type):
     """Sleep mode loop with countdown"""
-    global stop_operation, wait_minutes_setting, enable_cycling, current_sleep_type
+    global stop_operation, wait_minutes_setting, enable_cycling, current_sleep_type, force_ignore_inhibitors
 
     wait_minutes = initial_minutes
     cycle = 1
@@ -231,6 +283,10 @@ def sleep_mode_thread(initial_minutes, sleep_type):
 
         try:
             cmd = linux_sleep_helpers.get_sleep_command(sleep_type)
+            # Add -i flag to ignore inhibitors if enabled
+            if force_ignore_inhibitors and "-i" not in cmd:
+                cmd.insert(1, "-i")
+                logger.info(f"Using -i flag to ignore inhibitors for {sleep_type}")
             subprocess.run(cmd, check=True, timeout=TIMEOUT)
         except subprocess.TimeoutExpired:
             status_label.config(text="Sleep command timed out", foreground="red")
@@ -278,6 +334,10 @@ def prevent_mode_thread(reason):
                           foreground="green")
         progress_var.set(100)
         progress_bar.config(style="green.Horizontal.TProgressbar")
+
+        # Update button state to show "Stop Prevention"
+        cancel_btn.config(text="Stop Prevention", state='normal')
+        settings_btn.config(state='disabled')
         root.update()
 
         # Keep alive until cancelled
@@ -305,13 +365,85 @@ def prevent_mode_thread(reason):
         enable_controls()
 
 
+def list_active_inhibitors():
+    """List active systemd sleep inhibitors"""
+    try:
+        result = subprocess.run(
+            ["systemd-inhibit", "--list"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout
+        else:
+            return f"Error listing inhibitors: {result.stderr}"
+    except FileNotFoundError:
+        return "Error: systemd-inhibit command not found"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def cleanup_gui_inhibitors():
+    """Clean up leftover linuxSleep GUI inhibitors"""
+    try:
+        # Get list of inhibitors
+        result = subprocess.run(
+            ["systemd-inhibit", "--list"],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+
+        if result.returncode != 0:
+            return False, f"Failed to list inhibitors: {result.stderr}"
+
+        lines = result.stdout.strip().split('\n')
+        cleaned_count = 0
+        errors = []
+
+        # Skip header line and process each inhibitor
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+
+            # Check if this is a linuxSleep GUI inhibitor
+            if "linuxSleep GUI" in line:
+                # Extract PID (usually first column after USER)
+                parts = line.split()
+                if len(parts) >= 2:
+                    try:
+                        # Try to find and kill the process
+                        # The line format is: USER PID UID UID WHAT WHY WHO
+                        pid = parts[1]
+                        logger.info(f"Found linuxSleep GUI inhibitor (PID {pid}), attempting cleanup")
+                        subprocess.run(
+                            ["kill", "-9", pid],
+                            timeout=2,
+                            capture_output=True
+                        )
+                        cleaned_count += 1
+                    except Exception as e:
+                        errors.append(f"Error killing PID {pid}: {e}")
+
+        if cleaned_count > 0:
+            logger.info(f"Cleaned {cleaned_count} linuxSleep GUI inhibitor(s)")
+            return True, f"Successfully cleaned {cleaned_count} inhibitor(s)"
+        else:
+            return True, "No linuxSleep GUI inhibitors found"
+
+    except Exception as e:
+        logger.error(f"Cleanup error: {e}")
+        return False, f"Cleanup error: {e}"
+
+
 def open_settings():
     """Settings dialog"""
-    global enable_cycling, wait_minutes_setting, current_sleep_type
+    global enable_cycling, wait_minutes_setting, current_sleep_type, force_ignore_inhibitors
 
     settings_window = tk.Toplevel(root)
     settings_window.title("Settings")
-    settings_window.geometry("400x480")
+    settings_window.geometry("400x650")
     settings_window.transient(root)
     settings_window.grab_set()
 
@@ -364,6 +496,59 @@ def open_settings():
     ttk.Button(check_frame, text="Check Permissions",
               command=check_permissions).pack(side='left')
 
+    # Advanced sleep options
+    advanced_frame = ttk.LabelFrame(main_frame, text="Advanced Sleep Options", padding=10)
+    advanced_frame.pack(fill='x', pady=(0, 15))
+
+    force_inhibitors_var = tk.BooleanVar(value=force_ignore_inhibitors)
+    force_inhibitors_check = ttk.Checkbutton(advanced_frame,
+                                            text="Force sleep ignoring other inhibitors",
+                                            variable=force_inhibitors_var)
+    force_inhibitors_check.pack(anchor='w')
+    ttk.Label(advanced_frame, text="(e.g., from other running programs)",
+             font=('TkDefaultFont', 8), foreground="gray").pack(anchor='w')
+
+    # Inhibitor cleanup section
+    cleanup_frame = ttk.LabelFrame(main_frame, text="Cleanup Inhibitors", padding=10)
+    cleanup_frame.pack(fill='x', pady=(0, 15))
+
+    ttk.Label(cleanup_frame, text="Clean up leftover sleep inhibitors:",
+             font=('TkDefaultFont', 9)).pack(anchor='w', pady=(0, 10))
+
+    cleanup_button_frame = ttk.Frame(cleanup_frame)
+    cleanup_button_frame.pack(fill='x', pady=(0, 10))
+
+    def show_inhibitors():
+        """Show active inhibitors in a popup"""
+        inhibitors = list_active_inhibitors()
+        info_window = tk.Toplevel(settings_window)
+        info_window.title("Active Inhibitors")
+        info_window.geometry("500x300")
+        info_window.transient(settings_window)
+
+        text_widget = tk.Text(info_window, wrap='word', font=('Courier', 9))
+        text_widget.pack(fill='both', expand=True, padx=10, pady=10)
+        text_widget.insert('1.0', inhibitors)
+        text_widget.config(state='disabled')
+
+        ttk.Button(info_window, text="Close", command=info_window.destroy).pack(pady=5)
+
+    def run_cleanup():
+        """Run cleanup and show result"""
+        success, message = cleanup_gui_inhibitors()
+        if success:
+            messagebox.showinfo("Cleanup Complete", message)
+        else:
+            messagebox.showerror("Cleanup Failed", message)
+
+    ttk.Button(cleanup_button_frame, text="List Inhibitors",
+              command=show_inhibitors).pack(side='left', padx=(0, 5))
+    ttk.Button(cleanup_button_frame, text="Cleanup linuxSleep GUI",
+              command=run_cleanup).pack(side='left')
+
+    ttk.Label(cleanup_frame, text="Use this if the app crashed with an active inhibitor",
+             font=('TkDefaultFont', 8), foreground="gray").pack(anchor='w')
+
     # About section
     about_frame = ttk.LabelFrame(main_frame, text="About", padding=10)
     about_frame.pack(fill='x', pady=(0, 15))
@@ -385,10 +570,13 @@ def open_settings():
     button_frame.pack(fill='x', pady=(20, 0))
 
     def save_settings():
-        global enable_cycling, wait_minutes_setting, current_sleep_type
+        global enable_cycling, wait_minutes_setting, current_sleep_type, force_ignore_inhibitors
         enable_cycling = cycling_var.get()
         wait_minutes_setting = int(wait_spinbox.get())
         current_sleep_type = default_sleep_combo.get()
+        force_ignore_inhibitors = force_inhibitors_var.get()
+        logger.info(f"Settings saved: cycling={enable_cycling}, wake_delay={wait_minutes_setting}m, "
+                   f"sleep_type={current_sleep_type}, force_inhibitors={force_ignore_inhibitors}")
         settings_window.destroy()
 
     ttk.Button(button_frame, text="Save", command=save_settings).pack(side='left', padx=(0, 10))
@@ -414,6 +602,7 @@ config = config_loader.get_script_config("linux_sleep_gui")
 enable_cycling = config.get("enable_cycling", True)
 wait_minutes_setting = config.get("wake_delay_minutes", 5)
 current_sleep_type = config.get("default_sleep_type", "suspend")
+force_ignore_inhibitors = config.get("force_ignore_inhibitors", False)
 
 # Initialize logger
 logger = log_manager.init_logger("linux_sleep_gui")
@@ -492,6 +681,8 @@ start_btn.pack(side='left', padx=(0, 5))
 
 cancel_btn = ttk.Button(button_frame, text="Cancel", command=cancel_operation)
 cancel_btn.pack(side='left', padx=(0, 5))
+ToolTip(cancel_btn, "Cancel current operation\n"
+                    "For prevent sleep: Stop inhibitor and allow system to sleep")
 
 settings_btn = ttk.Button(button_frame, text="Settings", command=open_settings)
 settings_btn.pack(side='left', padx=(0, 5))
