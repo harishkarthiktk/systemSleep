@@ -29,5 +29,8 @@
     "default_sleep_type": "suspend",
     "enable_cycling": true,
     "prevent_sleep_reason": "User requested via GUI"
+  },
+  "windows_prevent_sleep": {
+    "check_interval_seconds": 10
   }
 }

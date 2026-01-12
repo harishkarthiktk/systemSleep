@@ -104,19 +104,19 @@ def start_sleep_prevention(reason: str, logger: logging.Logger) -> bool:
 
         prevent_process = subprocess.Popen(inhibit_cmd)
         logger.info(f"Sleep prevention started (PID: {prevent_process.pid}). Reason: {reason}")
-        print(f"✓ Sleep prevention activated (PID: {prevent_process.pid})")
+        print(f"Sleep prevention activated (PID: {prevent_process.pid})")
         print(f"  Reason: {reason}")
         return True
 
     except FileNotFoundError:
         error_msg = "systemd-inhibit command not found"
         logger.error(error_msg)
-        print(f"❌ Error: {error_msg}")
+        print(f"Error: {error_msg}")
         return False
     except Exception as e:
         error_msg = f"Error starting sleep prevention: {e}"
         logger.error(error_msg)
-        print(f"❌ {error_msg}")
+        print(f"Error: {error_msg}")
         return False
 
 
@@ -129,17 +129,17 @@ def stop_sleep_prevention(logger: logging.Logger):
             prevent_process.terminate()
             prevent_process.wait(timeout=2)
             logger.info("Sleep prevention stopped.")
-            print("✓ Sleep prevention deactivated")
+            print("Sleep prevention deactivated")
         except Exception as e:
             logger.warning(f"Error stopping sleep prevention: {e}")
-            print(f"⚠ Warning: Error stopping sleep prevention: {e}")
+            print(f"Warning: Error stopping sleep prevention: {e}")
 
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully (like macDontSleep.py)"""
-    print("\n\n🛑 Interrupt received, shutting down...")
+    print("\n\nInterrupt received, shutting down...")
     stop_sleep_prevention(logger)
-    print("👋 Goodbye!")
+    print("Goodbye!")
     sys.exit(0)
 
 
@@ -158,10 +158,10 @@ def prevent_mode_loop(reason: str, logger: logging.Logger):
         sys.exit(1)
 
     print("\n" + "="*60)
-    print("🚫 System Sleep Prevention Active")
+    print("System Sleep Prevention Active")
     print("="*60)
     print(f"Reason: {reason}")
-    print("⌨️  Press Ctrl+C to exit")
+    print("Press Ctrl+C to exit")
     print("="*60)
 
     try:
@@ -178,7 +178,7 @@ def main():
     # Platform and systemd check
     valid, error = linux_sleep_helpers.check_linux_environment()
     if not valid:
-        print(f"❌ {error}")
+        print(f"Error: {error}")
         sys.exit(1)
 
     # Load config
@@ -263,7 +263,7 @@ def main():
         # Check permissions
         has_perm, perm_error = linux_sleep_helpers.check_sleep_permissions(sleep_type)
         if not has_perm:
-            print(f"❌ {perm_error}")
+            print(f"Error: {perm_error}")
             logger.error(perm_error)
             sys.exit(1)
 

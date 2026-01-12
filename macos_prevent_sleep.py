@@ -25,22 +25,22 @@ def start_sleep_prevention():
     if sys.platform == 'darwin':
         try:
             caffeinate_process = subprocess.Popen(['caffeinate', '-i'])
-            msg = "✓ Sleep prevention activated (caffeinate running)"
+            msg = "Sleep prevention activated (caffeinate running)"
             print(msg)
             if logger:
                 logger.info(msg)
         except FileNotFoundError:
-            msg = "⚠ Warning: caffeinate not found (not running on macOS?)"
+            msg = "Warning: caffeinate not found (not running on macOS?)"
             print(msg)
             if logger:
                 logger.warning(msg)
         except Exception as e:
-            msg = f"⚠ Warning: Could not start sleep prevention: {e}"
+            msg = f"Warning: Could not start sleep prevention: {e}"
             print(msg)
             if logger:
                 logger.error(msg)
     else:
-        msg = "⚠ Not running on macOS - sleep prevention unavailable"
+        msg = "Warning: Not running on macOS - sleep prevention unavailable"
         print(msg)
         if logger:
             logger.warning(msg)
@@ -52,23 +52,23 @@ def stop_sleep_prevention():
         try:
             caffeinate_process.terminate()
             caffeinate_process.wait(timeout=2)
-            msg = "✓ Sleep prevention deactivated"
+            msg = "Sleep prevention deactivated"
             print(msg)
             if logger:
                 logger.info(msg)
         except Exception as e:
-            msg = f"⚠ Warning: Error stopping sleep prevention: {e}"
+            msg = f"Warning: Error stopping sleep prevention: {e}"
             print(msg)
             if logger:
                 logger.error(msg)
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C gracefully"""
-    print("\n\n🛑 Interrupt received, shutting down...")
+    print("\n\nInterrupt received, shutting down...")
     if logger:
         logger.info("Program interrupted by user signal.")
     stop_sleep_prevention()
-    print("👋 Goodbye!")
+    print("Goodbye!")
     sys.exit(0)
 
 def fetch_exchange_rate(api_url, api_timeout):
@@ -111,8 +111,8 @@ def fetch_exchange_rate(api_url, api_timeout):
 def display_exchange_rate(rate, timestamp):
     """Display the exchange rate in a formatted way"""
     print(f"\n{'='*50}")
-    print(f"⏰ Time: {timestamp}")
-    print(f"💱 USD → INR Exchange Rate: ₹{rate:.4f}")
+    print(f"Time: {timestamp}")
+    print(f"USD -> INR Exchange Rate: {rate:.4f}")
     print(f"{'='*50}")
 
 def main():
@@ -150,10 +150,10 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
 
     print("="*60)
-    print("🌍 USD to INR Exchange Rate Monitor")
+    print("USD to INR Exchange Rate Monitor")
     print("="*60)
-    print("📊 Fetching exchange rate every 5 minutes")
-    print("⌨️  Press Ctrl+C to exit")
+    print("Fetching exchange rate every 5 minutes")
+    print("Press Ctrl+C to exit")
     print("="*60)
     
     # Start sleep prevention
@@ -177,7 +177,7 @@ def main():
                 logger.info(f"Exchange rate fetched: {rate:.4f}")
             else:
                 msg = f"Error fetching exchange rate: {error}"
-                print(f"\n❌ {msg}")
+                print(f"\nError: {msg}")
                 print(f"   Will retry in {fetch_interval // 60} minutes...")
                 logger.warning(msg)
 
@@ -189,13 +189,13 @@ def main():
 
     except KeyboardInterrupt:
         # This should be caught by signal_handler, but just in case
-        print("\n\n🛑 Keyboard interrupt detected")
+        print("\n\nKeyboard interrupt detected")
         logger.info("Keyboard interrupt detected")
         stop_sleep_prevention()
-        print("👋 Goodbye!")
+        print("Goodbye!")
     except Exception as e:
         msg = f"Fatal error: {e}"
-        print(f"\n❌ {msg}")
+        print(f"\nError: {msg}")
         logger.error(msg)
         stop_sleep_prevention()
         sys.exit(1)
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     try:
         import requests
     except ImportError:
-        print("❌ Error: 'requests' module not found")
+        print("Error: 'requests' module not found")
         print("📦 Install it with: pip install requests")
         sys.exit(1)
     
